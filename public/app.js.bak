@@ -1,0 +1,735 @@
+const navItems = [
+  { id: 'playlist', label: 'Playlist Hub', icon: '🎶' },
+  { id: 'vault', label: 'Producer Vault', icon: '🔒' },
+  { id: 'insights', label: 'Insights', icon: '📊' },
+  { id: 'settings', label: 'Settings', icon: '⚙️' }
+];
+
+let activeView = 'playlist';
+let currentState = null;
+let currentUnlockId = null;
+
+const navRoot = document.getElementById('nav-links');
+const mainView = document.getElementById('main-view');
+const welcomeScreen = document.getElementById('welcome-screen');
+const appShell = document.getElementById('app-shell');
+const enterButton = document.getElementById('enter-dashboard');
+const demoLoginButton = document.getElementById('demo-login');
+const syncButton = document.getElementById('sync-playlists');
+const backupButton = document.getElementById('backup-playlists');
+const modalOverlay = document.getElementById('modal-overlay');
+const closeModalButton = document.getElementById('close-modal');
+const unlockAssetButton = document.getElementById('unlock-asset');
+const passphraseInput = document.getElementById('passphrase-input');
+const playlistModalOverlay = document.getElementById('playlist-modal-overlay');
+const playlistModalCloseButton = document.getElementById('playlist-modal-close');
+const loginForm = document.getElementById('login-form');
+const loginError = document.getElementById('login-error');
+const googleButton = document.getElementById('login-google');
+const twitterButton = document.getElementById('login-twitter');
+const appleButton = document.getElementById('login-apple');
+const authModeToggleButton = document.getElementById('auth-mode-toggle');
+const authToggleCopy = document.getElementById('auth-toggle-copy');
+const authStateLabel = document.getElementById('auth-state-label');
+const confirmPasswordInput = document.getElementById('manual-login-confirm-password');
+const authSubmitButton = document.getElementById('manual-login-submit');
+let activePlaylistModalId = null;
+let authMode = 'login';
+
+function applyTheme() {
+  const root = document.documentElement;
+  root.setAttribute('data-theme', currentState?.theme?.mode === 'light' ? 'light' : currentState?.theme?.accent || 'cyberpunk');
+  document.body.setAttribute('data-glass', String(currentState?.theme?.glass ?? true));
+}
+
+function renderNav() {
+  navRoot.innerHTML = navItems.map((item) => `
+    <button data-view="${item.id}" class="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm transition ${activeView === item.id ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--muted)] hover:bg-white/5 hover:text-[var(--text)]'}">
+      <span>${item.icon}</span>
+      <span>${item.label}</span>
+    </button>
+  `).join('');
+}
+
+function renderPlaylistView() {
+  const playlists = currentState.playlists;
+  const selectedPlaylist = playlists.find((playlist) => playlist.id === currentState.ui.selectedPlaylistId) || playlists[0];
+  const songs = selectedPlaylist?.songs || [];
+  mainView.innerHTML = `
+    <section class="rounded-3xl border border-[var(--border)] bg-[var(--panel)]/70 p-5 shadow-lg shadow-black/20">
+      <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Playlist Hub</p>
+          <h3 class="text-2xl font-semibold">Connected platforms</h3>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <span class="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-sm text-emerald-300">Spotify Connected</span>
+          <span class="rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-sm text-cyan-300">YouTube Music Connected</span>
+          <span class="rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-sm text-violet-300">Local Storage Connected</span>
+        </div>
+      </div>
+      <div class="grid gap-4 xl:grid-cols-3">
+        ${playlists.map((playlist) => `
+          <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel-2)] p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-[var(--muted)]">${playlist.platform}</p>
+                <h4 class="text-lg font-semibold">${playlist.title}</h4>
+              </div>
+              <div class="rounded-2xl bg-white/10 px-3 py-2 text-xl">${playlist.icon}</div>
+            </div>
+            <p class="mt-4 text-sm text-[var(--muted)]">${playlist.totalTracks} tracks • synced ${playlist.lastSynced}</p>
+            <div class="mt-4 flex gap-2">
+              <button data-backup="${playlist.id}" class="rounded-full bg-[var(--accent-soft)] px-3 py-2 text-sm text-[var(--accent)] transition hover:opacity-90">Backup</button>
+              <button data-open-playlist-modal="${playlist.id}" class="rounded-full border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)] transition hover:border-[var(--accent)]">View</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--panel-2)] p-4">
+        <div class="mb-4 flex items-center justify-between">
+          <h4 class="text-lg font-semibold">${selectedPlaylist.title}</h4>
+          <button data-toggle-backup class="rounded-full border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)]">${selectedPlaylist.backupMode === 'cloud' ? 'Cloud Backup' : 'Local JSON Backup'}</button>
+        </div>
+        <div class="overflow-hidden rounded-2xl border border-[var(--border)]">
+          <table class="min-w-full text-left text-sm">
+            <thead class="bg-slate-700/80 text-slate-300">
+              <tr>
+                <th class="px-4 py-3">#</th>
+                <th class="px-4 py-3">Title</th>
+                <th class="px-4 py-3">Artist</th>
+                <th class="px-4 py-3">Platform</th>
+                <th class="px-4 py-3">Play Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${songs.map((song, index) => `
+                <tr class="cursor-pointer border-t border-[var(--border)] bg-slate-800/50 hover:bg-slate-700/70" data-open-song="${selectedPlaylist.id}" data-song-index="${index}">
+                  <td class="px-4 py-3">${index + 1}</td>
+                  <td class="px-4 py-3">${song.title}</td>
+                  <td class="px-4 py-3">${song.artist}</td>
+                  <td class="px-4 py-3">${song.platform}</td>
+                  <td class="px-4 py-3">${song.playCount}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderVaultView() {
+  mainView.innerHTML = `
+    <section class="rounded-3xl border border-[var(--border)] bg-[var(--panel)]/70 p-5 shadow-lg shadow-black/20">
+      <div class="mb-5 flex items-center justify-between">
+        <div>
+          <p class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Producer Vault</p>
+          <h3 class="text-2xl font-semibold">Secure audio assets</h3>
+        </div>
+        <button id="import-asset" class="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)] transition hover:opacity-90">Import Audio Asset</button>
+      </div>
+      <div class="grid gap-4 lg:grid-cols-2">
+        ${currentState.vault.map((asset) => `
+          <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel-2)] p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-lg font-semibold">${asset.name}</h4>
+                <p class="text-sm text-[var(--muted)]">BPM ${asset.bpm} • Key ${asset.key}</p>
+              </div>
+              <button data-lock="${asset.id}" class="rounded-full ${asset.locked ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'} px-3 py-2 text-sm font-medium">
+                ${asset.locked ? 'Locked' : 'Active Preview'}
+              </button>
+            </div>
+            <div class="mt-4 flex items-center justify-between text-sm text-[var(--muted)]">
+              <span>${asset.locked ? 'Preview requires local passphrase' : 'Preview ready'}</span>
+              ${asset.locked ? `<button data-unlock-trigger="${asset.id}" class="text-[var(--accent)]">Unlock</button>` : ''}
+            </div>
+            ${!asset.locked ? `
+              <div class="mt-4 rounded-2xl border border-[var(--border)] bg-slate-800/60 p-4">
+                <div class="mb-3 h-20 rounded-xl bg-gradient-to-r from-cyan-500/20 to-violet-500/20"></div>
+                <p class="text-sm text-[var(--muted)]">Preview waveform • ${asset.shareMode === 'shareable' ? 'Shareable secure link' : 'Encrypted local-only'}</p>
+              </div>` : ''}
+            }
+          </div>
+        `).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function renderInsightsView() {
+  const insights = currentState.insights;
+  mainView.innerHTML = `
+    <section class="space-y-4">
+      <div class="rounded-3xl border border-[var(--border)] bg-[var(--panel)]/70 p-5 shadow-lg shadow-black/20">
+        <p class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Insights</p>
+        <h3 class="mt-2 text-2xl font-semibold">Most repeated tracks</h3>
+        <div class="mt-5 space-y-3">
+          ${insights.topTracks.map((track) => `
+            <button data-metric="${track.metricId}" class="flex w-full items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--panel-2)] px-4 py-3 text-left">
+              <div>
+                <p class="font-medium">${track.title}</p>
+                <p class="text-sm text-[var(--muted)]">Loop streak building</p>
+              </div>
+              <div class="rounded-2xl bg-[var(--accent-soft)] px-4 py-2 text-center text-[var(--accent)]">
+                <div class="text-2xl font-semibold">${track.loops}</div>
+                <div class="text-[10px] uppercase tracking-[0.2em] text-[var(--muted)]">loops</div>
+              </div>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+      <div class="grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
+        <div class="rounded-3xl border border-[var(--border)] bg-gradient-to-br from-[var(--accent)]/10 to-violet-500/10 p-5">
+          <p class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Total loops this week</p>
+          <div class="mt-3 text-5xl font-semibold text-[var(--accent)]">${insights.totalLoopsThisWeek}</div>
+          <p class="mt-3 text-sm text-[var(--muted)]">Your most replayed songs are dominating your current release prep.</p>
+        </div>
+        <div class="rounded-3xl border border-[var(--border)] bg-[var(--panel)]/70 p-5">
+          <p class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Wrapped</p>
+          <p class="mt-3 text-lg text-[var(--text)]">${insights.wrappedSummary}</p>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderSettingsView() {
+  const { settingsView } = currentState.ui;
+  if (settingsView === 'account') {
+    mainView.innerHTML = `
+      <section class="rounded-3xl border border-[var(--border)] bg-[var(--panel)]/70 p-5 shadow-lg shadow-black/20">
+        <button data-settings-back class="mb-4 rounded-full border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)]">← Back</button>
+        <p class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Account Settings</p>
+        <h3 class="mt-2 text-2xl font-semibold">Profile Setup & Auth</h3>
+        <div class="mt-6 grid gap-4 lg:grid-cols-[1fr_0.8fr]">
+          <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel-2)] p-4">
+            <h4 class="font-semibold">Profile Setup</h4>
+            <form id="profile-form" class="mt-4 space-y-3">
+              <input id="display-name" class="w-full rounded-2xl border border-[var(--border)] bg-[var(--panel)] px-3 py-2" value="${currentState.profile.displayName}" />
+              <input id="email-input" class="w-full rounded-2xl border border-[var(--border)] bg-[var(--panel)] px-3 py-2" value="${currentState.profile.email}" />
+              <input id="phone-input" class="w-full rounded-2xl border border-[var(--border)] bg-[var(--panel)] px-3 py-2" value="${currentState.profile.phone}" />
+              <input id="avatar-upload" type="file" class="w-full rounded-2xl border border-[var(--border)] bg-[var(--panel)] px-3 py-2" />
+              <button type="submit" class="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)]">Save profile</button>
+            </form>
+          </div>
+          <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel-2)] p-4">
+            <h4 class="font-semibold">Multi-Auth Integration</h4>
+            <div class="mt-4 space-y-2">
+              ${Object.entries(currentState.profile.authProviders).map(([provider, enabled]) => `
+                <button data-auth-provider="${provider}" class="flex w-full items-center justify-between rounded-2xl border border-[var(--border)] px-3 py-3 text-sm ${enabled ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--text)]'}">
+                  <span>${provider.charAt(0).toUpperCase() + provider.slice(1)}</span>
+                  <span>${enabled ? 'Enabled' : 'Disabled'}</span>
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+      </section>
+    `;
+    return;
+  }
+
+  if (settingsView === 'theme') {
+    mainView.innerHTML = `
+      <section class="rounded-3xl border border-[var(--border)] bg-[var(--panel)]/70 p-5 shadow-lg shadow-black/20">
+        <button data-settings-back class="mb-4 rounded-full border border-[var(--border)] px-3 py-2 text-sm text-[var(--text)]">← Back</button>
+        <p class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Theme Customization Engine</p>
+        <h3 class="mt-2 text-2xl font-semibold">Core theme triggers</h3>
+        <div class="mt-6 grid gap-4 md:grid-cols-2">
+          <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel-2)] p-4">
+            <h4 class="font-semibold">Mode</h4>
+            <div class="mt-3 flex gap-2">
+              <button data-theme-mode="dark" class="rounded-full border border-[var(--border)] px-3 py-2 text-sm">Dark Mode</button>
+              <button data-theme-mode="light" class="rounded-full border border-[var(--border)] px-3 py-2 text-sm">Light Mode</button>
+            </div>
+            <div class="mt-4">
+              <label class="flex items-center gap-2 text-sm">
+                <input id="glass-toggle" type="checkbox" ${currentState.theme.glass ? 'checked' : ''} />
+                <span>Glassmorphism</span>
+              </label>
+            </div>
+          </div>
+          <div class="rounded-2xl border border-[var(--border)] bg-[var(--panel-2)] p-4">
+            <h4 class="font-semibold">Accent Color</h4>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button data-theme-accent="cyberpunk" class="rounded-full border border-[var(--border)] px-3 py-2 text-sm">Cyberpunk Purple</button>
+              <button data-theme-accent="spotify" class="rounded-full border border-[var(--border)] px-3 py-2 text-sm">Spotify Green</button>
+              <button data-theme-accent="youtube" class="rounded-full border border-[var(--border)] px-3 py-2 text-sm">YouTube Red</button>
+              <button data-theme-accent="steel" class="rounded-full border border-[var(--border)] px-3 py-2 text-sm">Steel Blue</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    `;
+    return;
+  }
+
+  mainView.innerHTML = `
+    <section class="rounded-3xl border border-[var(--border)] bg-[var(--panel)]/70 p-5 shadow-lg shadow-black/20">
+      <p class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Settings</p>
+      <h3 class="mt-2 text-2xl font-semibold">Personalize your workspace</h3>
+      <div class="mt-6 grid gap-4 md:grid-cols-2">
+        <button data-settings-root="account" class="rounded-2xl border border-[var(--border)] bg-[var(--panel-2)] p-4 text-left">
+          <h4 class="font-semibold">Account Settings</h4>
+          <p class="mt-2 text-sm text-[var(--muted)]">Manage profile data, avatar, and auth providers.</p>
+        </button>
+        <button data-settings-root="theme" class="rounded-2xl border border-[var(--border)] bg-[var(--panel-2)] p-4 text-left">
+          <h4 class="font-semibold">Theme Customization Engine</h4>
+          <p class="mt-2 text-sm text-[var(--muted)]">Switch modes and swap accents instantly.</p>
+        </button>
+      </div>
+    </section>
+  `;
+}
+
+function renderView() {
+  if (activeView === 'playlist') renderPlaylistView();
+  else if (activeView === 'vault') renderVaultView();
+  else if (activeView === 'insights') renderInsightsView();
+  else renderSettingsView();
+  updatePlayerUi();
+  applyTheme();
+}
+
+function updatePlayerUi() {
+  document.getElementById('player-title').textContent = currentState.player.title;
+  document.getElementById('player-artist').textContent = currentState.player.artist;
+  document.getElementById('player-volume').textContent = `Vol ${currentState.player.volume}%`;
+  document.getElementById('repeat-count').textContent = currentState.player.repeatCount;
+  document.getElementById('player-progress').style.width = `${currentState.player.progress}%`;
+  document.getElementById('quick-loop').textContent = currentState.insights.topTracks[0].title;
+}
+
+async function loadDashboard() {
+  const res = await fetch('/api/dashboard');
+  currentState = await res.json();
+  applyTheme();
+  renderNav();
+  renderView();
+}
+
+async function syncPlaylists() {
+  const res = await fetch('/api/sync-playlists', { method: 'POST' });
+  const data = await res.json();
+  if (data.success) {
+    currentState.playlists = data.playlists;
+    renderView();
+  }
+}
+
+async function backupPlaylists() {
+  const res = await fetch('/api/backup-playlists', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: currentState.playlists[0].backupMode === 'cloud' ? 'local' : 'cloud' }) });
+  const data = await res.json();
+  if (data.success) {
+    currentState.playlists.forEach((playlist) => { playlist.backupMode = playlist.backupMode === 'cloud' ? 'local' : 'cloud'; });
+    renderView();
+  }
+}
+
+async function importAsset() {
+  const name = window.prompt('Asset name', 'New Stem');
+  if (!name) return;
+  const res = await fetch('/api/import-asset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) });
+  const data = await res.json();
+  if (data.success) {
+    currentState.vault = data.vault;
+    renderView();
+  }
+}
+
+async function toggleLock(id) {
+  const res = await fetch('/api/toggle-lock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+  const data = await res.json();
+  if (data.success) {
+    const asset = currentState.vault.find((entry) => entry.id === id);
+    if (asset) asset.locked = data.asset.locked;
+    renderView();
+  }
+}
+
+function showModal(id) {
+  currentUnlockId = id;
+  modalOverlay.classList.remove('hidden');
+  modalOverlay.classList.add('flex');
+}
+
+function hideModal() {
+  modalOverlay.classList.add('hidden');
+  modalOverlay.classList.remove('flex');
+  currentUnlockId = null;
+  passphraseInput.value = '';
+}
+
+function openPlaylistModal(playlistId) {
+  const playlist = currentState?.playlists?.find((entry) => entry.id === playlistId);
+  if (!playlist) return;
+
+  currentState.ui.selectedPlaylistId = playlistId;
+  activePlaylistModalId = playlistId;
+
+  const runtimeMinutes = playlist.totalTracks * 3 + 8;
+  const bpm = playlist.platform === 'YouTube Music' ? 96 : playlist.platform === 'Local Storage' ? 140 : 128;
+  const key = playlist.platform === 'Local Storage' ? 'F#m' : playlist.platform === 'YouTube Music' ? 'C' : 'Am';
+
+  document.getElementById('playlist-modal-title').textContent = playlist.title;
+  document.getElementById('playlist-modal-platform').textContent = `${playlist.platform} • curated mix`;
+  document.getElementById('playlist-modal-icon').textContent = playlist.icon;
+  document.getElementById('playlist-modal-runtime').textContent = `${playlist.totalTracks} tracks • ${runtimeMinutes} min • synced ${playlist.lastSynced}`;
+  document.getElementById('playlist-modal-summary').textContent = `${playlist.totalTracks} tracks are ready for playback, backup, or download.`;
+
+  const rows = playlist.songs.map((song, index) => `
+    <tr class="border-t border-white/10 bg-slate-950/20">
+      <td class="px-4 py-3">${index + 1}</td>
+      <td class="px-4 py-3">
+        <div class="font-medium">${song.title}</div>
+        <div class="text-xs text-slate-400">${song.artist}</div>
+      </td>
+      <td class="px-4 py-3 text-slate-300">${bpm} / ${key}</td>
+      <td class="px-4 py-3"><span class="inline-flex rounded-full bg-cyan-500/15 px-3 py-1 text-xs font-semibold text-cyan-200">${song.playCount} loops</span></td>
+    </tr>
+  `).join('');
+  document.getElementById('playlist-modal-tracks').innerHTML = rows;
+
+  playlistModalOverlay.classList.remove('hidden');
+  playlistModalOverlay.classList.add('flex');
+  playlistModalOverlay.classList.add('playlist-modal-overlay');
+}
+
+function closePlaylistModal() {
+  playlistModalOverlay.classList.add('hidden');
+  playlistModalOverlay.classList.remove('flex', 'playlist-modal-overlay');
+  activePlaylistModalId = null;
+}
+
+async function handleSocialLogin(provider) {
+  const res = await fetch('/api/social-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider }) });
+  const data = await res.json();
+  if (data.success) {
+    currentState.profile = data.profile;
+    loginError.classList.add('hidden');
+    welcomeScreen.classList.add('hidden');
+    appShell.classList.remove('hidden');
+    await loadDashboard();
+  } else {
+    loginError.textContent = data.message || 'Unable to login with ' + provider;
+    loginError.classList.remove('hidden');
+  }
+}
+
+async function handleManualLogin(event) {
+  event.preventDefault();
+  const email = document.getElementById('manual-login-email').value.trim();
+  const password = document.getElementById('manual-login-password').value.trim();
+  const confirmPassword = confirmPasswordInput.value.trim();
+
+  if (!email || !password) {
+    loginError.textContent = 'Please enter both email and password.';
+    loginError.classList.remove('hidden');
+    return;
+  }
+
+  if (authMode === 'signup') {
+    if (!confirmPassword) {
+      loginError.textContent = 'Please confirm your password.';
+      loginError.classList.remove('hidden');
+      return;
+    }
+    if (password !== confirmPassword) {
+      loginError.textContent = 'Passwords do not match.';
+      loginError.classList.remove('hidden');
+      return;
+    }
+  }
+
+  const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+  const data = await res.json();
+  if (data.success) {
+    currentState.profile = data.profile;
+    loginError.classList.add('hidden');
+    welcomeScreen.classList.add('hidden');
+    appShell.classList.remove('hidden');
+    await loadDashboard();
+  } else {
+    loginError.textContent = data.message || 'Login failed.';
+    loginError.classList.remove('hidden');
+  }
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  if (mode === 'signup') {
+    authStateLabel.textContent = 'Manual sign up';
+    authSubmitButton.textContent = 'Create Account';
+    confirmPasswordInput.classList.remove('hidden');
+    authToggleCopy.textContent = 'Already have an account?';
+    authModeToggleButton.textContent = 'Log In';
+  } else {
+    authStateLabel.textContent = 'Manual login';
+    authSubmitButton.textContent = 'Login with email';
+    confirmPasswordInput.classList.add('hidden');
+    authToggleCopy.textContent = "Don't have an account?";
+    authModeToggleButton.textContent = 'Sign Up';
+  }
+  loginError.classList.add('hidden');
+}
+
+async function unlockAsset() {
+  if (!currentUnlockId) return;
+  const res = await fetch('/api/unlock-asset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assetId: currentUnlockId, passphrase: passphraseInput.value }) });
+  const data = await res.json();
+  if (data.success) {
+    const asset = currentState.vault.find((entry) => entry.id === currentUnlockId);
+    if (asset) {
+      asset.locked = false;
+      asset.previewActive = true;
+    }
+    hideModal();
+    renderView();
+  } else {
+    alert(data.message || 'Unlock failed');
+  }
+}
+
+async function saveProfile(event) {
+  event.preventDefault();
+  const formData = new FormData(document.getElementById('profile-form'));
+  const payload = {
+    displayName: formData.get('displayName') || document.getElementById('display-name').value,
+    email: formData.get('email') || document.getElementById('email-input').value,
+    phone: formData.get('phone') || document.getElementById('phone-input').value
+  };
+  const res = await fetch('/api/profile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const data = await res.json();
+  if (data.success) {
+    currentState.profile = data.profile;
+    renderView();
+  }
+}
+
+async function uploadAvatar() {
+  const input = document.getElementById('avatar-upload');
+  if (!input.files?.length) return;
+  const formData = new FormData();
+  formData.append('avatar', input.files[0]);
+  const res = await fetch('/api/upload-avatar', { method: 'POST', body: formData });
+  const data = await res.json();
+  if (data.success) {
+    currentState.profile = data.profile;
+    renderView();
+  }
+}
+
+async function changeTheme(mode) {
+  const res = await fetch('/api/theme', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode }) });
+  const data = await res.json();
+  if (data.success) {
+    currentState.theme = data.theme;
+    applyTheme();
+    renderView();
+  }
+}
+
+async function changeAccent(accent) {
+  const res = await fetch('/api/theme', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accent }) });
+  const data = await res.json();
+  if (data.success) {
+    currentState.theme = data.theme;
+    applyTheme();
+    renderView();
+  }
+}
+
+async function toggleGlass() {
+  const res = await fetch('/api/theme', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ glass: !currentState.theme.glass }) });
+  const data = await res.json();
+  if (data.success) {
+    currentState.theme = data.theme;
+    applyTheme();
+    renderView();
+  }
+}
+
+async function toggleAuthProvider(provider) {
+  const res = await fetch('/api/toggle-auth-provider', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider }) });
+  const data = await res.json();
+  if (data.success) {
+    currentState.profile = data.profile;
+    renderView();
+  }
+}
+
+async function selectPlaylist(id) {
+  const res = await fetch('/api/select-playlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playlistId: id, view: 'detail' }) });
+  const data = await res.json();
+  if (data.success) {
+    currentState.ui = data.ui;
+    renderView();
+  }
+}
+
+async function openSongDrawer(playlistId, songIndex) {
+  const res = await fetch('/api/select-song', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playlistId, songIndex }) });
+  const data = await res.json();
+  if (data.success) {
+    currentState.ui = data.ui;
+    renderView();
+  }
+}
+
+async function openInsight(metricId) {
+  const res = await fetch('/api/select-insight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ metricId }) });
+  const data = await res.json();
+  if (data.success) {
+    currentState.ui = data.ui;
+    renderView();
+  }
+}
+
+async function updateAsset(assetId) {
+  const bpm = window.prompt('Set BPM', '120');
+  const key = window.prompt('Set key', 'Am');
+  const tags = window.prompt('Set tags (comma separated)', 'bass,night');
+  const shareMode = window.prompt('Share mode (local-only/shareable)', 'local-only');
+  const res = await fetch('/api/update-asset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assetId, bpm, key, tags: tags?.split(',').map((item) => item.trim()).filter(Boolean), shareMode }) });
+  const data = await res.json();
+  if (data.success) {
+    const asset = currentState.vault.find((entry) => entry.id === assetId);
+    if (asset) Object.assign(asset, data.asset);
+    renderView();
+  }
+}
+
+enterButton.addEventListener('click', async () => {
+  welcomeScreen.classList.add('hidden');
+  appShell.classList.remove('hidden');
+  await loadDashboard();
+});
+
+demoLoginButton.addEventListener('click', async () => {
+  welcomeScreen.classList.add('hidden');
+  appShell.classList.remove('hidden');
+  await loadDashboard();
+});
+
+navRoot.addEventListener('click', (event) => {
+  const target = event.target.closest('[data-view]');
+  if (!target) return;
+  activeView = target.getAttribute('data-view');
+  renderNav();
+  renderView();
+});
+
+mainView.addEventListener('click', async (event) => {
+  const backupButtonEl = event.target.closest('[data-backup]');
+  if (backupButtonEl) {
+    await backupPlaylists();
+    return;
+  }
+  const playlistModalButton = event.target.closest('[data-open-playlist-modal]');
+  if (playlistModalButton) {
+    openPlaylistModal(playlistModalButton.getAttribute('data-open-playlist-modal'));
+    return;
+  }
+  const playlistButton = event.target.closest('[data-open-playlist]');
+  if (playlistButton) {
+    await selectPlaylist(playlistButton.getAttribute('data-open-playlist'));
+    return;
+  }
+  const songRow = event.target.closest('[data-open-song]');
+  if (songRow) {
+    await openSongDrawer(songRow.getAttribute('data-open-song'), Number(songRow.getAttribute('data-song-index')));
+    return;
+  }
+  const metricButton = event.target.closest('[data-metric]');
+  if (metricButton) {
+    await openInsight(metricButton.getAttribute('data-metric'));
+    return;
+  }
+  const settingsRootButton = event.target.closest('[data-settings-root]');
+  if (settingsRootButton) {
+    currentState.ui.settingsView = settingsRootButton.getAttribute('data-settings-root');
+    renderView();
+    return;
+  }
+  const settingsBackButton = event.target.closest('[data-settings-back]');
+  if (settingsBackButton) {
+    currentState.ui.settingsView = 'root';
+    renderView();
+    return;
+  }
+  const themeModeButton = event.target.closest('[data-theme-mode]');
+  if (themeModeButton) {
+    await changeTheme(themeModeButton.getAttribute('data-theme-mode'));
+    return;
+  }
+  const themeAccentButton = event.target.closest('[data-theme-accent]');
+  if (themeAccentButton) {
+    await changeAccent(themeAccentButton.getAttribute('data-theme-accent'));
+    return;
+  }
+  const authProviderButton = event.target.closest('[data-auth-provider]');
+  if (authProviderButton) {
+    await toggleAuthProvider(authProviderButton.getAttribute('data-auth-provider'));
+    return;
+  }
+  const unlockTrigger = event.target.closest('[data-unlock-trigger]');
+  if (unlockTrigger) {
+    showModal(unlockTrigger.getAttribute('data-unlock-trigger'));
+    return;
+  }
+  const lockButton = event.target.closest('[data-lock]');
+  if (lockButton) {
+    await toggleLock(lockButton.getAttribute('data-lock'));
+    return;
+  }
+  const assetButton = event.target.closest('[data-asset-config]');
+  if (assetButton) {
+    await updateAsset(assetButton.getAttribute('data-asset-config'));
+    return;
+  }
+});
+
+syncButton.addEventListener('click', syncPlaylists);
+backupButton.addEventListener('click', backupPlaylists);
+closeModalButton.addEventListener('click', hideModal);
+unlockAssetButton.addEventListener('click', unlockAsset);
+playlistModalCloseButton.addEventListener('click', closePlaylistModal);
+modalOverlay.addEventListener('click', (event) => {
+  if (event.target === modalOverlay) hideModal();
+});
+playlistModalOverlay.addEventListener('click', (event) => {
+  if (event.target === playlistModalOverlay) closePlaylistModal();
+});
+loginForm.addEventListener('submit', handleManualLogin);
+authModeToggleButton.addEventListener('click', (event) => {
+  event.preventDefault();
+  setAuthMode(authMode === 'login' ? 'signup' : 'login');
+});
+googleButton.addEventListener('click', () => handleSocialLogin('google'));
+twitterButton.addEventListener('click', () => handleSocialLogin('twitter'));
+appleButton.addEventListener('click', () => handleSocialLogin('apple'));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    closePlaylistModal();
+    hideModal();
+  }
+});
+
+document.addEventListener('submit', async (event) => {
+  if (event.target.id === 'profile-form') {
+    event.preventDefault();
+    await saveProfile(event);
+  }
+});
+
+document.addEventListener('change', async (event) => {
+  if (event.target.id === 'avatar-upload') {
+    await uploadAvatar();
+  }
+  if (event.target.id === 'glass-toggle') {
+    await toggleGlass();
+  }
+});

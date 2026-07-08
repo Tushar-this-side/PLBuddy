@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PLBuddy Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body class="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+    <div id="welcome-screen" class="flex min-h-screen items-center justify-center px-6 py-16">
+      <div class="max-w-3xl rounded-3xl border border-[var(--border)] bg-[var(--panel)] p-10 shadow-2xl shadow-black/30 backdrop-blur">
+        <p class="mb-4 text-sm font-semibold uppercase tracking-[0.3em] text-[var(--accent)]">PLBuddy Studio</p>
+        <h1 class="text-4xl font-semibold sm:text-5xl">Your music, playlists, and producer workspace in one elegant command center.</h1>
+        <p class="mt-5 text-lg text-[var(--muted)]">Connect your platforms, secure your stems, and see your most repeated tracks with one sleek dashboard.</p>
+        <div class="mt-8 grid gap-4 sm:grid-cols-[1.1fr_0.9fr]">
+          <div class="space-y-4 rounded-3xl border border-[var(--border)] bg-[var(--panel-2)] p-5">
+            <p class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Login with</p>
+            <div class="grid gap-3">
+              <button id="login-google" class="flex items-center justify-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--panel)] px-4 py-3 text-sm text-[var(--text)] transition hover:bg-white/5">
+                <span class="inline-flex h-5 w-5 items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" class="inline mr-2">
+                    <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114A5.514 5.514 0 0 1 8.477 13c0-3.046 2.467-5.514 5.514-5.514 1.358 0 2.597.491 3.56 1.301l3.113-3.113A9.883 9.883 0 0 0 13.99 2 9.99 9.99 0 0 0 4 12a9.99 9.99 0 0 0 9.99 10c5.514 0 9.99-4.476 9.99-10 0-.663-.06-1.312-.171-1.944l-11.57-.056z"/>
+                  </svg>
+                </span>
+                Continue with Google
+              </button>
+              <button id="login-twitter" class="flex items-center justify-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--panel)] px-4 py-3 text-sm text-[var(--text)] transition hover:bg-white/5">
+                <span class="inline-flex h-5 w-5 items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#FFFFFF" class="inline mr-2">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                  </svg>
+                </span>
+                Continue with X
+              </button>
+              <button id="login-apple" class="flex items-center justify-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--panel)] px-4 py-3 text-sm text-[var(--text)] transition hover:bg-white/5">
+                <span class="inline-flex h-5 w-5 items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="#FFFFFF" class="inline mr-2">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.21.67-2.93 1.49-.62.69-1.16 1.84-1.01 2.96 1.12.09 2.27-.57 2.95-1.39z"/>
+                  </svg>
+                </span>
+                Continue with Apple ID
+              </button>
+            </div>
+          </div>
+          <form id="login-form" class="space-y-4 rounded-3xl border border-[var(--border)] bg-[var(--panel-2)] p-5">
+            <p id="auth-state-label" class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Manual login</p>
+            <input id="manual-login-email" type="email" placeholder="Email address" class="w-full rounded-2xl border border-[var(--border)] bg-[var(--panel)] px-4 py-3 text-[var(--text)]" required />
+            <input id="manual-login-password" type="password" placeholder="Password" class="w-full rounded-2xl border border-[var(--border)] bg-[var(--panel)] px-4 py-3 text-[var(--text)]" required />
+            <input id="manual-login-confirm-password" type="password" placeholder="Confirm password" class="hidden w-full rounded-2xl border border-[var(--border)] bg-[var(--panel)] px-4 py-3 text-[var(--text)]" />
+            <button id="manual-login-submit" type="submit" class="w-full rounded-full bg-[var(--accent)] px-4 py-3 text-sm font-medium text-[var(--accent-contrast)] transition hover:opacity-90">Login with email</button>
+            <p id="login-error" class="text-sm text-rose-400 hidden"></p>
+            <div class="text-sm text-[var(--muted)]">
+              <span id="auth-toggle-copy">Don't have an account?</span>
+              <button id="auth-mode-toggle" class="ml-2 font-semibold text-[var(--accent)] transition hover:text-white">Sign Up</button>
+            </div>
+          </form>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-4">
+          <button id="enter-dashboard" class="rounded-full bg-[var(--accent)] px-6 py-3 font-medium text-[var(--accent-contrast)] transition hover:opacity-90">Continue as Demo</button>
+          <button id="demo-login" class="rounded-full border border-[var(--border)] px-6 py-3 font-medium text-[var(--text)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]">Explore without login</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="app-shell" class="hidden min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.14),_transparent_30%)]">
+      <div class="flex min-h-screen flex-col lg:flex-row">
+        <aside class="hidden lg:block w-full border-b border-[var(--border)] bg-[var(--panel)]/80 px-4 py-6 backdrop-blur lg:w-72 lg:border-b-0 lg:border-r">
+          <div class="mb-8 px-2">
+            <p class="text-sm uppercase tracking-[0.35em] text-[var(--accent)]">PLBuddy</p>
+            <h2 class="mt-2 text-2xl font-semibold">Command Center</h2>
+          </div>
+          <nav class="space-y-2" id="nav-links"></nav>
+          <div class="mt-10 rounded-2xl border border-[var(--border)] bg-[var(--accent-soft)] p-4 text-sm text-[var(--muted)]">
+            <p class="font-semibold text-[var(--accent)]">Cloud sync ready</p>
+            <p class="mt-2">Back up playlists locally or queue them for your premium cloud tier.</p>
+          </div>
+        </aside>
+
+        <main class="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
+          <header class="mb-6 flex flex-col gap-4 rounded-3xl border border-[var(--border)] bg-[var(--panel)]/70 p-4 shadow-lg shadow-black/20 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Welcome back</p>
+              <h3 class="text-2xl font-semibold">Today’s creative flow</h3>
+            </div>
+            <div class="flex items-center gap-3">
+              <button id="sync-playlists" class="rounded-full border border-[var(--accent)]/40 bg-[var(--accent-soft)] px-4 py-2 text-sm font-medium text-[var(--accent)] transition hover:opacity-90">Sync Playlists</button>
+              <button id="backup-playlists" class="rounded-full border border-[var(--border)] bg-white/5 px-4 py-2 text-sm font-medium text-[var(--text)] transition hover:bg-white/10">Backup</button>
+            </div>
+          </header>
+          <div id="main-view" class="space-y-4"></div>
+        </main>
+
+        <aside class="hidden lg:block w-full border-t border-[var(--border)] bg-[var(--panel)]/80 p-4 backdrop-blur lg:w-80 lg:border-t-0 lg:border-l">
+          <div class="sticky top-4 space-y-4">
+            <div class="rounded-3xl border border-[var(--border)] bg-[var(--panel-2)] p-4">
+              <div class="mb-4 flex items-center justify-between">
+                <div>
+                  <p class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Now playing</p>
+                  <h3 id="player-title" class="mt-1 text-lg font-semibold"></h3>
+                </div>
+                <span class="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Loop x<span id="repeat-count"></span></span>
+              </div>
+              <div class="h-2 rounded-full bg-slate-700">
+                <div id="player-progress" class="h-2 rounded-full bg-gradient-to-r from-cyan-400 to-violet-500"></div>
+              </div>
+              <div class="mt-4 flex items-center justify-between text-sm text-[var(--muted)]">
+                <span id="player-artist"></span>
+                <span id="player-volume"></span>
+              </div>
+              <div class="mt-4 flex items-center gap-2">
+                <button id="player-prev" class="rounded-full bg-white/10 px-3 py-2 text-sm transition hover:bg-white/20">◀</button>
+                <button id="player-play-pause" class="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)] transition hover:opacity-90">Play</button>
+                <button id="player-next" class="rounded-full bg-white/10 px-3 py-2 text-sm transition hover:bg-white/20">▶▶</button>
+              </div>
+              <div class="mt-4">
+                <label class="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">Volume</label>
+                <input id="player-volume-slider" type="range" min="0" max="100" value="72" class="mt-2 w-full rounded-full accent-[var(--accent)]" />
+              </div>
+            </div>
+            <div class="rounded-3xl border border-[var(--border)] bg-gradient-to-br from-[var(--accent)]/10 via-[var(--panel-2)] to-violet-500/10 p-4">
+              <p class="text-sm uppercase tracking-[0.3em] text-[var(--muted)]">Quick pulse</p>
+              <p class="mt-3 text-xl font-semibold">Your top loop this week is <span id="quick-loop"></span>.</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <nav id="mobile-bottom-nav" class="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between gap-2 border-t border-[var(--border)] bg-[var(--panel)]/95 px-4 py-3 backdrop-blur lg:hidden">
+        <button data-mobile-view="playlist" class="flex flex-1 flex-col items-center justify-center rounded-3xl px-3 py-2 text-xs text-[var(--muted)] transition hover:bg-white/5" aria-label="Home Hub">
+          <span class="text-2xl">🏠</span>
+          <span class="mt-1">Hub</span>
+        </button>
+        <button data-mobile-view="vault" class="flex flex-1 flex-col items-center justify-center rounded-3xl px-3 py-2 text-xs text-[var(--muted)] transition hover:bg-white/5" aria-label="Producer Vault">
+          <span class="text-2xl">🔒</span>
+          <span class="mt-1">Vault</span>
+        </button>
+        <button data-mobile-view="insights" class="flex flex-1 flex-col items-center justify-center rounded-3xl px-3 py-2 text-xs text-[var(--muted)] transition hover:bg-white/5" aria-label="Insights">
+          <span class="text-2xl">📊</span>
+          <span class="mt-1">Insights</span>
+        </button>
+        <button data-mobile-view="settings" class="flex flex-1 flex-col items-center justify-center rounded-3xl px-3 py-2 text-xs text-[var(--muted)] transition hover:bg-white/5" aria-label="Settings">
+          <span class="text-2xl">⚙️</span>
+          <span class="mt-1">Settings</span>
+        </button>
+      </nav>
+    </div>
+
+    <audio id="audio-element" preload="metadata"></audio>
+
+    <div id="vault-security-overlay" class="fixed inset-0 z-60 hidden items-center justify-center bg-black/60 px-4 backdrop-blur-2xl">
+      <div class="vault-lock-card w-full max-w-md rounded-[32px] border border-white/15 bg-[rgba(10,18,34,0.92)] p-6 shadow-[0_40px_120px_rgba(0,0,0,0.45)] backdrop-filter shadow-black/40">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-xs uppercase tracking-[0.4em] text-[var(--accent)]">Producer Vault</p>
+            <h3 class="mt-2 text-3xl font-semibold tracking-tight">VAULT LOCKED</h3>
+            <p class="mt-3 text-sm text-[var(--muted)]" id="vault-security-description">Authentication required to unlock your mobile stems.</p>
+          </div>
+          <button id="vault-security-cancel" class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-white/5 text-lg transition hover:bg-white/10">×</button>
+        </div>
+
+        <div id="vault-security-state" class="mt-6 rounded-3xl border border-white/10 bg-[rgba(7,14,26,0.92)] p-5 text-center shadow-inner shadow-cyan-500/10">
+          <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--panel)]/90 text-[var(--accent)] shadow-[0_0_30px_rgba(34,211,238,0.22)]">
+            <span class="text-3xl">🔐</span>
+          </div>
+          <p class="text-sm uppercase tracking-[0.35em] text-[var(--accent)]">Authentication Required</p>
+          <p class="mt-3 text-sm text-[var(--muted)]">Secure your vault with a master passcode or unlock it to continue.</p>
+        </div>
+
+        <form id="vault-password-form" class="mt-6 space-y-4">
+          <div id="vault-setup-panel" class="space-y-4 hidden">
+            <div class="rounded-3xl border border-white/15 bg-[rgba(15,23,42,0.8)] p-4 text-center">
+              <p class="text-sm text-[var(--muted)]">Create your master secure passcode to lock the Producer Vault.</p>
+            </div>
+            <input id="vault-setup-pass" type="password" autocomplete="new-password" placeholder="Enter Master Password" class="w-full rounded-3xl border border-white/15 bg-[rgba(15,23,42,0.92)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20" />
+            <input id="vault-confirm-pass" type="password" autocomplete="new-password" placeholder="Confirm Master Password" class="w-full rounded-3xl border border-white/15 bg-[rgba(15,23,42,0.92)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20" />
+          </div>
+
+          <div id="vault-enter-panel" class="space-y-4 hidden">
+            <div class="rounded-3xl border border-white/15 bg-[rgba(15,23,42,0.8)] p-4 text-center">
+              <p class="text-sm text-[var(--muted)]">Enter your vault passcode to unlock the Producer Vault.</p>
+            </div>
+            <input id="vault-enter-pass" type="password" autocomplete="current-password" placeholder="Enter your vault passcode" class="w-full rounded-3xl border border-white/15 bg-[rgba(15,23,42,0.92)] px-4 py-3 text-[var(--text)] outline-none transition focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20" />
+          </div>
+
+          <button id="vault-password-submit" type="submit" class="w-full rounded-full bg-[var(--accent)] px-4 py-3 text-sm font-medium text-[var(--accent-contrast)] transition hover:opacity-90">Unlock Vault</button>
+        </form>
+
+        <div id="vault-mobile-reveal" class="mt-6 hidden rounded-3xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-center text-emerald-200">
+          <p class="text-sm uppercase tracking-[0.35em]">Vault Unlocked</p>
+          <p class="mt-2 text-base font-medium">Secure audio stems are ready. Swipe up to access decrypted content.</p>
+        </div>
+
+        <p id="vault-security-error" class="mt-4 hidden rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200"></p>
+      </div>
+    </div>
+
+    <div id="modal-overlay" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 px-4 backdrop-blur">
+      <div class="w-full max-w-md rounded-3xl border border-[var(--border)] bg-[var(--panel)] p-6 shadow-2xl shadow-black/40">
+        <h3 class="text-xl font-semibold">Unlock Secure Vault</h3>
+        <p class="mt-2 text-sm text-[var(--muted)]">Enter your local passphrase to preview this locked asset.</p>
+        <input id="passphrase-input" class="mt-5 w-full rounded-2xl border border-[var(--border)] bg-[var(--panel-2)] px-4 py-3 text-[var(--text)]" placeholder="Passphrase" />
+        <div class="mt-6 flex justify-end gap-3">
+          <button id="close-modal" class="rounded-full border border-[var(--border)] px-4 py-2 text-sm text-[var(--text)]">Cancel</button>
+          <button id="unlock-asset" class="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)]">Unlock</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="playlist-modal-overlay" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-md">
+      <div class="playlist-modal-card relative w-full max-w-4xl overflow-hidden rounded-[30px] border border-white/20 bg-white/10 p-[1px] shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] backdrop-blur-xl">
+        <div class="relative flex max-h-[85vh] flex-col overflow-hidden rounded-[29px] bg-slate-900/40 p-6 text-white backdrop-blur-xl">
+          <div class="flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+            <div>
+              <div class="flex items-center gap-3">
+                <div id="playlist-modal-icon" class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-2xl"></div>
+                <div>
+                  <p id="playlist-modal-platform" class="text-xs uppercase tracking-[0.25em] text-slate-300"></p>
+                  <h3 id="playlist-modal-title" class="text-2xl font-semibold"></h3>
+                </div>
+              </div>
+              <p id="playlist-modal-runtime" class="mt-3 text-sm text-slate-300"></p>
+            </div>
+            <button id="playlist-modal-close" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/10 text-lg text-slate-100 transition hover:bg-white/20">×</button>
+          </div>
+
+          <div class="mt-5 flex-1 overflow-auto">
+            <div class="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/30">
+              <table class="min-w-full text-left text-sm">
+                <thead class="bg-white/10 text-slate-200">
+                  <tr>
+                    <th class="px-4 py-3">#</th>
+                    <th class="px-4 py-3">Title & Artist</th>
+                    <th class="px-4 py-3">BPM / Key</th>
+                    <th class="px-4 py-3">Play Count</th>
+                  </tr>
+                </thead>
+                <tbody id="playlist-modal-tracks"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
+            <p id="playlist-modal-summary" class="text-sm text-slate-300"></p>
+            <div class="flex flex-wrap gap-2">
+              <button class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20">Sync / Download</button>
+              <button class="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-contrast)] transition hover:opacity-90">Play Playlist</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
